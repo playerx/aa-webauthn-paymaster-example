@@ -123,7 +123,7 @@ const signUserOpWithCreate = async (
   const passkey = await startRegistration({
     rp: {
       name: 'WebAuthn.io (Dev)',
-      id: 'localhost',
+      id: location.hostname,
     },
     user: {
       id: base64url.encode(crypto.randomUUID()),
