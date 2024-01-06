@@ -3,6 +3,7 @@ import { IUserOperation, Presets, UserOperationBuilder } from 'userop';
 
 import {
   resolveAccount,
+  resolveAlchemyGasAndPaymasterData,
   resolveNonce,
   resolveWebAuthnSignature,
 } from '../presets';
@@ -21,6 +22,7 @@ const CUSTOM_PAYMASTER_URL = 'http://localhost:8080/sponsorUserOperation';
 
 export async function sendTransaction(
   loginUsername: string,
+  paymaster: 'STACKUP' | 'ALCHEMY',
   statusUpdateFn: (status: string) => void
 ): Promise<[ethers.Event[], ethers.providers.TransactionResponse]> {
   if (!loginUsername) throw Error('Login not set');
@@ -30,6 +32,8 @@ export async function sendTransaction(
     0
   );
   console.log('walletAddress', walletAddress);
+
+  statusUpdateFn(`Selected Paymaster: ${paymaster}`);
 
   statusUpdateFn(`Wallet address: <pre>${walletAddress}</pre>`);
 
@@ -50,23 +54,21 @@ export async function sendTransaction(
       )
     )
 
-    // >> Stackup Paymaster
     .useMiddleware(
-      Presets.Middleware.verifyingPaymaster(
-        'https://api.stackup.sh/v1/paymaster/54fe8665d13ebc11341af214d62141289d4348a1fdbf72041e9ca1e4f06bd16b',
-        { type: 'payg' }
-      )
+      paymaster === 'STACKUP'
+        ? // >> Stackup Paymaster
+          Presets.Middleware.verifyingPaymaster(
+            'https://api.stackup.sh/v1/paymaster/54fe8665d13ebc11341af214d62141289d4348a1fdbf72041e9ca1e4f06bd16b',
+            { type: 'payg' }
+          )
+        : // >> Aclhemy Paymaster
+          resolveAlchemyGasAndPaymasterData(
+            ENTRYPOINT_ADDRESS,
+            'https://eth-sepolia.g.alchemy.com/v2/G877AttcsdLjN_XYyon926pWginvLx9L',
+            '9cef39a1-c45e-46d0-bf50-b977875579d2',
+            { preVerificationGas: { percentage: 120 } }
+          )
     )
-
-    // >> Aclhemy Paymaster
-    // .useMiddleware(
-    //   resolveAlchemyGasAndPaymasterData(
-    //     ENTRYPOINT_ADDRESS,
-    //     'https://eth-sepolia.g.alchemy.com/v2/G877AttcsdLjN_XYyon926pWginvLx9L',
-    //     '9cef39a1-c45e-46d0-bf50-b977875579d2',
-    //     { preVerificationGas: { percentage: 120 } }
-    //   )
-    // )
 
     // >> Custom Paymaster
     // .useMiddleware(

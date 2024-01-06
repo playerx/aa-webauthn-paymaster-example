@@ -9,6 +9,12 @@ import { sendTransaction } from './minting';
   styleUrl: `./app.component.scss`,
   template: `
     <input #nameEl placeholder="Please enter unique username" />
+
+    <select [value]="selectedPaymaster" (change)="onPaymasterChange($event)">
+      <option value="STACKUP">Paymaster: Stackup</option>
+      <option value="ALCHEMY">Paymaster: Alchemy</option>
+    </select>
+
     <button (click)="mint(nameEl.value)" [disabled]="disabled">
       Create Account and Mint NFT
     </button>
@@ -29,12 +35,15 @@ export class AppComponent {
   statusTextList = signal<string[]>([]);
   errorText = signal('');
   disabled: boolean = false;
+  selectedPaymaster = 'STACKUP';
 
   async mint(name: string) {
     this.disabled = true;
     try {
-      const [events, receipt] = await sendTransaction(name, (x) =>
-        this.statusTextList.update((y) => [...y, x])
+      const [events, receipt] = await sendTransaction(
+        name,
+        this.selectedPaymaster as any,
+        (x) => this.statusTextList.update((y) => [...y, x])
       );
 
       this.statusTextList.update((x) => [
@@ -46,5 +55,10 @@ export class AppComponent {
       console.log(err);
       this.errorText.set(err.message);
     }
+  }
+
+  onPaymasterChange(x: any) {
+    const res = x.srcElement.options[x.srcElement.selectedIndex].value;
+    this.selectedPaymaster = res;
   }
 }
