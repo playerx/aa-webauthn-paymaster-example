@@ -19,7 +19,10 @@ import {
 const LOGIN_URL = 'http://localhost:8080/login';
 const CUSTOM_PAYMASTER_URL = 'http://localhost:8080/sponsorUserOperation';
 
-export async function sendTransaction(loginUsername: string) {
+export async function sendTransaction(
+  loginUsername: string,
+  statusUpdateFn: (status: string) => void
+): Promise<[ethers.Event[], ethers.providers.TransactionResponse]> {
   if (!loginUsername) throw Error('Login not set');
 
   const walletAddress = await walletFactoryContract['getAddress'](
@@ -27,6 +30,8 @@ export async function sendTransaction(loginUsername: string) {
     0
   );
   console.log('walletAddress', walletAddress);
+
+  statusUpdateFn(`Wallet address: <pre>${walletAddress}</pre>`);
 
   const userOpBuilder = new UserOperationBuilder()
     .useDefaults({
@@ -84,36 +89,49 @@ export async function sendTransaction(loginUsername: string) {
   // Build and sign userOp
   const { chainId } = await provider.getNetwork();
 
+  statusUpdateFn(`ChainId: <pre>${chainId}</pre>`);
+
+  statusUpdateFn(`Building userOp...`);
+
   const signedUserOp = await userOpBuilder.buildOp(ENTRYPOINT_ADDRESS, chainId);
 
-  // Send userOp
-  sendUserOp(signedUserOp)
-    .then(async (receipt) => {
-      await receipt.wait();
-      console.log(receipt.hash);
-      console.log('confirmed');
-      console.log({ receipt });
-      const events = await avatarPackContract.queryFilter(
-        avatarPackContract.filters['Transfer'](
-          ethers.constants.AddressZero,
-          walletAddress
-        ),
-        receipt.blockNumber
-      );
-      console.log({ events });
+  statusUpdateFn(`userOp: <pre>${JSON.stringify(signedUserOp, null, 2)}</pre>`);
 
-      const tokenUri = await avatarPackContract['tokenURI'](
-        events[0].args?.['tokenId']
-      );
-    })
-    .catch((e: Error) => {
-      console.log('error');
-      console.error(e);
-    });
+  // Send userOp
+  const receipt = await sendUserOp(signedUserOp, statusUpdateFn);
+
+  await receipt.wait();
+
+  statusUpdateFn(`confirmed. querying events...`);
+
+  console.log(receipt.hash);
+  console.log('confirmed');
+  console.log({ receipt });
+  const events = await avatarPackContract.queryFilter(
+    avatarPackContract.filters['Transfer'](
+      ethers.constants.AddressZero,
+      walletAddress
+    ),
+    receipt.blockNumber
+  );
+  console.log({ events });
+
+  statusUpdateFn(
+    `events: ${events.map(
+      (x) => `<pre>${x.event} (from: ${x.args![0]} to: ${x.args![1]})</pre>`
+    )}`
+  );
+
+  const tokenUri = await avatarPackContract['tokenURI'](
+    events[0].args?.['tokenId']
+  );
+
+  return [events, receipt];
 }
 
 const sendUserOp = async (
-  userOp: IUserOperation
+  userOp: IUserOperation,
+  statusUpdateFn: (status: string) => void
 ): Promise<ethers.providers.TransactionResponse> => {
   console.log('yo userOp', JSON.stringify(userOp));
   console.log('yo entrypoint', entrypointContract.address);
@@ -121,13 +139,19 @@ const sendUserOp = async (
     userOp,
     entrypointContract.address,
   ]);
-  return waitForUserOp(userOpHash, userOp);
+
+  statusUpdateFn(
+    `userOpHash: <pre>${userOpHash}</pre> waiting for the confirmatoin...`
+  );
+
+  return waitForUserOp(userOpHash, userOp, 50, statusUpdateFn);
 };
 
 const waitForUserOp = async (
   userOpHash: string,
   userOp: IUserOperation,
-  maxRetries = 50
+  maxRetries = 50,
+  statusUpdateFn: (status: string) => void
 ): Promise<ethers.providers.TransactionResponse> => {
   if (maxRetries < 0) {
     throw new Error("Couldn't find the userOp broadcasted: " + userOpHash);
@@ -139,6 +163,8 @@ const waitForUserOp = async (
     lastBlock.number - 100
   );
 
+  statusUpdateFn('Checking...');
+
   if (events[0]) {
     const transaction = await events[0].getTransaction();
     return transaction;
@@ -147,5 +173,5 @@ const waitForUserOp = async (
   await new Promise((resolve) => {
     setTimeout(resolve, 1000);
   });
-  return waitForUserOp(userOpHash, userOp, --maxRetries);
+  return waitForUserOp(userOpHash, userOp, --maxRetries, statusUpdateFn);
 };
