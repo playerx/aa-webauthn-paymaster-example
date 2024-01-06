@@ -43,6 +43,7 @@ export class AppComponent {
         'Completed successfully!',
       ]);
     } catch (err: any) {
+      console.log(err);
       this.errorText.set(err.message);
     }
   }
