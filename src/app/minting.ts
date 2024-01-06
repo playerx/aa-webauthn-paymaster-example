@@ -3,7 +3,6 @@ import { IUserOperation, Presets, UserOperationBuilder } from 'userop';
 
 import {
   resolveAccount,
-  resolveCustomPaymasterData,
   resolveNonce,
   resolveWebAuthnSignature,
 } from '../presets';
@@ -47,12 +46,12 @@ export async function sendTransaction(loginUsername: string) {
     )
 
     // >> Stackup Paymaster
-    // .useMiddleware(
-    //   Presets.Middleware.verifyingPaymaster(
-    //     'https://api.stackup.sh/v1/paymaster/54fe8665d13ebc11341af214d62141289d4348a1fdbf72041e9ca1e4f06bd16b',
-    //     { type: 'payg' }
-    //   )
-    // )
+    .useMiddleware(
+      Presets.Middleware.verifyingPaymaster(
+        'https://api.stackup.sh/v1/paymaster/54fe8665d13ebc11341af214d62141289d4348a1fdbf72041e9ca1e4f06bd16b',
+        { type: 'payg' }
+      )
+    )
 
     // >> Aclhemy Paymaster
     // .useMiddleware(
@@ -65,7 +64,13 @@ export async function sendTransaction(loginUsername: string) {
     // )
 
     // >> Custom Paymaster
-    .useMiddleware(resolveCustomPaymasterData(provider, CUSTOM_PAYMASTER_URL))
+    // .useMiddleware(
+    //   resolveCustomPaymasterData(
+    //     provider,
+    //     CUSTOM_PAYMASTER_URL,
+    //     ENTRYPOINT_ADDRESS
+    //   )
+    // )
 
     .useMiddleware(resolveWebAuthnSignature(LOGIN_URL, loginUsername))
     .setCallData(

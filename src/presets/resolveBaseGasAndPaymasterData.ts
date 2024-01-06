@@ -1,7 +1,7 @@
 import { BigNumber, ethers } from 'ethers';
 import { UserOperationMiddlewareFn } from 'userop';
 
-export const resolveCustomPaymasterData =
+export const resolveGoerliGasAndPaymasterData =
   (
     provider: ethers.providers.JsonRpcProvider,
     paymasterUrl: string,
