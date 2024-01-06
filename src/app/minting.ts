@@ -17,8 +17,9 @@ import {
   webauthnAccountAbi,
 } from './contracts';
 
-const LOGIN_URL = 'http://localhost:8080/login';
-const CUSTOM_PAYMASTER_URL = 'http://localhost:8080/sponsorUserOperation';
+const LOGIN_URL = 'https://webauthn-server.deno.dev/login';
+const CUSTOM_PAYMASTER_URL =
+  'https://webauthn-server.deno.dev/sponsorUserOperation';
 
 export async function sendTransaction(
   loginUsername: string,
